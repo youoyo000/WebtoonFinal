@@ -256,6 +256,6 @@ def start_crawl():
 
     return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
-if __name__ == "__main__":
-    # 🔴 確保 Port 是 5000，才能對應到 React 的設定
-    app.run(debug=True, port=5000)
+#if __name__ == "__main__":
+    # 在 Render 上，必須設定 host='0.0.0.0' 才能公開
+  #  app.run(host='0.0.0.0', port=10000)
