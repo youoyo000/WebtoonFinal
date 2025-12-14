@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webtoon 爬蟲中控台 (JSON版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .log-container {
+            height: 500px;
+            overflow-y: auto;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Consolas', 'Monaco', monospace;
+            white-space: pre-wrap;
+            scroll-behavior: smooth;
+        }
+        .log-line { margin: 2px 0; border-bottom: 1px solid #333; padding: 2px 0; }
+        .log-success { color: #4ade80; } /* 綠色 */
+        .log-skip { color: #94a3b8; }    /* 灰色 */
+        .log-error { color: #f87171; }   /* 紅色 */
+        .log-info { color: #60a5fa; }    /* 藍色 */
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-8">
+
+    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="bg-gray-800 p-6 flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold text-white mb-1">🕷️ Webtoon 爬蟲中控台</h1>
+                <p class="text-gray-400 text-sm">儲存模式：<span class="text-yellow-400 font-bold">本地 JSON 檔案</span> (不消耗 Firebase 額度)</p>
+            </div>
+            <div id="status-badge" class="px-4 py-2 rounded-full text-sm font-bold bg-gray-600 text-gray-200">
+                閒置中
+            </div>
+        </div>
+
+        <div class="p-6 border-b border-gray-200 bg-gray-50 flex gap-4">
+            <button id="start-btn" onclick="startCrawl()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg shadow transition transform hover:scale-105 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                開始爬蟲
+            </button>
+            <button onclick="clearLogs()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg shadow transition">
+                清除日誌
+            </button>
+            <div class="ml-auto text-sm text-gray-500 flex items-center">
+                <span class="mr-2">目前資料庫狀態：</span>
+                <a href="/api/comics" target="_blank" class="text-blue-600 hover:underline">查看 JSON 資料 API</a>
+            </div>
+        </div>
+
+        <div class="p-6">
+            <div class="flex justify-between text-sm text-gray-500 mb-2">
+                <span>執行日誌 (即時串流)</span>
+                <span id="log-count">0 行</span>
+            </div>
+            <div id="log-output" class="log-container p-4 rounded-lg shadow-inner text-sm">
+                <div class="text-gray-500 italic">準備就緒，請按下「開始爬蟲」...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let eventSource = null;
+        const logBox = document.getElementById('log-output');
+        const startBtn = document.getElementById('start-btn');
+        const statusBadge = document.getElementById('status-badge');
+        let lineCount = 0;
+
+        function startCrawl() {
+            // 防止重複點擊
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            // 更新 UI 狀態
+            startBtn.disabled = true;
+            startBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            statusBadge.className = "px-4 py-2 rounded-full text-sm font-bold bg-blue-500 text-white animate-pulse";
+            statusBadge.innerText = "爬蟲執行中...";
+            logBox.innerHTML = '<div class="text-gray-400 border-b border-gray-700 pb-2 mb-2">🚀 系統啟動，正在連線後端...</div>';
+            lineCount = 0;
+
+            // 建立 SSE 連線 (連線到 Flask 的 /start-crawl)
+            eventSource = new EventSource('/start-crawl');
+
+            eventSource.onmessage = function(event) {
+                const msg = event.data;
+                
+                // 判斷結束訊號
+                if (msg === 'DONE') {
+                    endCrawl();
+                    return;
+                }
+
+                // 根據訊息內容決定顏色
+                let colorClass = '';
+                if (msg.includes('✅') || msg.includes('新增')) colorClass = 'log-success';
+                else if (msg.includes('⏭️') || msg.includes('跳過')) colorClass = 'log-skip';
+                else if (msg.includes('❌') || msg.includes('錯誤')) colorClass = 'log-error';
+                else if (msg.includes('🔍') || msg.includes('分析')) colorClass = 'log-info';
+
+                // 新增一行日誌
+                const div = document.createElement('div');
+                div.className = `log-line ${colorClass}`;
+                div.textContent = msg; // 這裡不需要 JSON.parse，後端傳的是純文字
+                logBox.appendChild(div);
+
+                // 自動捲動到底部
+                logBox.scrollTop = logBox.scrollHeight;
+                
+                // 更新行數
+                lineCount++;
+                document.getElementById('log-count').innerText = lineCount + " 行";
+            };
+
+            eventSource.onerror = function(err) {
+                console.error("EventSource failed:", err);
+                // 有時候結束時會觸發 error，這很正常，我們當作結束處理
+                endCrawl(); 
+                
+                const div = document.createElement('div');
+                div.className = "log-line log-error";
+                div.textContent = "⚠️ 連線已中斷 (任務結束或發生網路錯誤)";
+                logBox.appendChild(div);
+            };
+        }
+
+        function endCrawl() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+            startBtn.disabled = false;
+            startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            statusBadge.className = "px-4 py-2 rounded-full text-sm font-bold bg-green-500 text-white";
+            statusBadge.innerText = "任務完成 / 閒置";
+        }
+
+        function clearLogs() {
+            logBox.innerHTML = '';
+            lineCount = 0;
+            document.getElementById('log-count').innerText = "0 行";
+        }
+    </script>
+</body>
+</html>

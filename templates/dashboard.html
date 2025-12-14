@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webtoon 智慧爬蟲控制台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .log-window {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background-color: #1a1a1a;
+            color: #d4d4d4;
+        }
+        /* 自訂動畫 */
+        @keyframes pulse-green {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+        .status-running {
+            animation: pulse-green 2s infinite;
+        }
+        /* 卷軸美化 */
+        .log-window::-webkit-scrollbar {
+            width: 8px;
+        }
+        .log-window::-webkit-scrollbar-track {
+            background: #1a1a1a; 
+        }
+        .log-window::-webkit-scrollbar-thumb {
+            background: #555; 
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-6 md:p-12 font-sans">
+
+    <div class="max-w-5xl mx-auto">
+        <div class="bg-white rounded-2xl shadow-xl p-6 mb-8 flex flex-col md:flex-row justify-between items-center border-l-8 border-green-500">
+            <div class="mb-4 md:mb-0">
+                <h1 class="text-3xl font-extrabold text-gray-800">
+                    <i class="fa-solid fa-robot text-green-500 mr-2"></i> Webtoon 爬蟲中控台
+                </h1>
+                <p class="text-gray-500 mt-2 flex items-center">
+                    <i class="fa-solid fa-database mr-2"></i> Firebase 資料庫同步模式 (智慧略過重複資料)
+                </p>
+            </div>
+            <div id="status-badge" class="hidden px-5 py-2 bg-green-100 text-green-700 rounded-full font-bold shadow-sm flex items-center status-running">
+                <i class="fa-solid fa-circle-notch fa-spin mr-2"></i> 系統運作中
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 flex flex-col justify-between">
+                <div>
+                    <h3 class="font-bold text-gray-600 mb-4 uppercase text-sm tracking-wider">控制面板</h3>
+                    <p class="text-xs text-gray-400 mb-4">點擊下方按鈕開始同步資料。系統會自動偵測話數變更。</p>
+                </div>
+                <button id="start-btn" onclick="startCrawl()" class="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-4 px-4 rounded-xl transition duration-300 transform hover:scale-105 shadow-md flex justify-center items-center">
+                    <i class="fa-solid fa-rocket mr-2"></i> 開始更新
+                </button>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 md:col-span-2">
+                <h3 class="font-bold text-gray-600 mb-6 uppercase text-sm tracking-wider">即時統計</h3>
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="bg-blue-50 p-4 rounded-xl border-l-4 border-blue-500">
+                        <span class="text-blue-600 text-xs font-bold uppercase">已更新 / 新增</span>
+                        <div class="mt-2 flex items-baseline">
+                            <span id="update-count" class="text-4xl font-black text-blue-900">0</span>
+                            <span class="ml-2 text-sm text-blue-400">本</span>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-xl border-l-4 border-gray-400">
+                        <span class="text-gray-500 text-xs font-bold uppercase">無變更 (已略過)</span>
+                        <div class="mt-2 flex items-baseline">
+                            <span id="skip-count" class="text-4xl font-black text-gray-700">0</span>
+                            <span class="ml-2 text-sm text-gray-400">本</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-gray-100">
+                    <div class="text-xs text-gray-400">當前處理：</div>
+                    <div id="current-task" class="text-sm font-medium text-gray-700 truncate mt-1">等待指令...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gray-900 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-black ring-opacity-5">
+            <div class="bg-gray-800 px-4 py-3 flex justify-between items-center border-b border-gray-700">
+                <div class="flex items-center space-x-2">
+                    <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                    <span class="ml-4 text-xs text-gray-400 font-mono">system@webtoon-crawler:~# log output</span>
+                </div>
+                <button onclick="clearLog()" class="text-xs text-gray-500 hover:text-white transition">Clear Logs</button>
+            </div>
+            <div id="log-container" class="log-window h-96 overflow-y-auto p-6 text-sm leading-relaxed font-mono">
+                <div class="text-gray-500">>> 系統準備就緒...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let eventSource = null;
+        let updateCount = 0;
+        let skipCount = 0;
+
+        function startCrawl() {
+            const btn = document.getElementById('start-btn');
+            const status = document.getElementById('status-badge');
+            const logContainer = document.getElementById('log-container');
+            
+            // 鎖定按鈕
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed', 'scale-100'); // 移除 hover 效果
+            btn.classList.remove('hover:scale-105');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> 處理中...';
+            status.classList.remove('hidden');
+            
+            // 重置數據
+            logContainer.innerHTML = '';
+            updateCount = 0;
+            skipCount = 0;
+            updateStats();
+            
+            // 建立連線
+            eventSource = new EventSource('/start-crawl');
+
+            eventSource.onmessage = function(e) {
+                const msg = e.data;
+                
+                if (msg === 'DONE') {
+                    stopCrawl();
+                    addLog('>> 執行完畢。', 'text-green-500 font-bold');
+                    return;
+                }
+
+                // 根據訊息類型上色
+                if (msg.includes('正在讀取')) {
+                    addLog(msg, 'text-cyan-400');
+                } else if (msg.includes('分析中')) {
+                    const title = msg.split('：')[1]?.replace('...', '');
+                    if(title) document.getElementById('current-task').innerText = title;
+                    addLog(msg, 'text-yellow-200');
+                } else if (msg.includes('更新資料') || msg.includes('新增資料')) {
+                    updateCount++;
+                    updateStats();
+                    addLog(msg, 'text-green-400');
+                } else if (msg.includes('跳過')) {
+                    skipCount++;
+                    updateStats();
+                    addLog(msg, 'text-gray-500');
+                } else if (msg.includes('錯誤') || msg.includes('失敗')) {
+                    addLog(msg, 'text-red-400 font-bold');
+                } else {
+                    addLog(msg, 'text-gray-300');
+                }
+            };
+
+            eventSource.onerror = function() {
+                addLog('>> 連線中斷。', 'text-red-500');
+                stopCrawl();
+            };
+        }
+
+        function stopCrawl() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+            const btn = document.getElementById('start-btn');
+            const status = document.getElementById('status-badge');
+            
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed', 'scale-100');
+            btn.classList.add('hover:scale-105');
+            btn.innerHTML = '<i class="fa-solid fa-rocket mr-2"></i> 再次開始';
+            status.classList.add('hidden');
+            document.getElementById('current-task').innerText = "等待指令...";
+        }
+
+        function addLog(text, colorClass) {
+            const container = document.getElementById('log-container');
+            const div = document.createElement('div');
+            // 增加時間戳記
+            const time = new Date().toLocaleTimeString('zh-TW', {hour12: false});
+            div.className = `${colorClass} mb-1 border-b border-gray-800 pb-1`;
+            div.innerHTML = `<span class="text-gray-600 text-xs mr-2">[${time}]</span> ${text}`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function updateStats() {
+            document.getElementById('update-count').innerText = updateCount;
+            document.getElementById('skip-count').innerText = skipCount;
+        }
+
+        function clearLog() {
+            document.getElementById('log-container').innerHTML = '<div class="text-gray-500">>> Log cleared.</div>';
+        }
+    </script>
+</body>
+</html>
