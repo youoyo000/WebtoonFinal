@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { Search, BookOpen, Gift, Lock, CheckCircle, Zap, LayoutGrid, Sparkles } from 'lucide-react';
+import { Search, BookOpen, Gift, Lock, CheckCircle, Zap, LayoutGrid, Sparkles, Trophy, Hourglass } from 'lucide-react';
 
 const Dashboard = () => {
   // 資料與篩選狀態
@@ -9,10 +9,10 @@ const Dashboard = () => {
   const [filteredComics, setFilteredComics] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
-  
+   
   // --- 分頁狀態 ---
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 100;
+  const itemsPerPage = 20; 
 
   // 統計數據
   const [stats, setStats] = useState({ 
@@ -24,16 +24,21 @@ const Dashboard = () => {
 
   const navigate = useNavigate();
 
+  // ---------------------------------------------------------
+  // 🔴 請將下方的網址改成您 Render 後端的實際網址 (不要有最後的斜線)
+  // ---------------------------------------------------------
+  const BACKEND_URL = "https://你的後端網址.onrender.com"; 
+
   useEffect(() => {
     fetchComics();
-  }, []);
+  }, [BACKEND_URL]);
 
   useEffect(() => {
     applyFilters();
     setCurrentPage(1);
   }, [comics, searchTerm, filterType]);
 
-  // === 核心判斷邏輯 (完全保留) ===
+  // === 核心判斷邏輯 ===
   const getComicStatus = (comic) => {
     const text = comic.access || comic.episodes || '';
     if (text.includes('需要追漫券')) return 'paid';
@@ -43,7 +48,8 @@ const Dashboard = () => {
 
   const fetchComics = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/comics');
+      // ✅ 已修改：使用雲端網址
+      const res = await axios.get(`${BACKEND_URL}/api/comics`);
       const data = res.data;
       setComics(data);
       
@@ -85,38 +91,45 @@ const Dashboard = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const getImg = (url) => `http://localhost:5000/api/proxy-image?url=${encodeURIComponent(url)}`;
+  // ✅ 已修改：使用雲端網址
+  const getImg = (url) => `${BACKEND_URL}/api/proxy-image?url=${encodeURIComponent(url)}`;
 
   return (
-    <div className="p-6 md:p-10 max-w-[1400px] mx-auto bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 min-h-screen font-sans text-slate-800">
+    // 1. 全局背景：Webtoon 風格 (淺綠白漸層)
+    <div className="p-6 md:p-10 max-w-[1400px] mx-auto bg-[#f8fff9] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-100/40 via-white to-white min-h-screen font-sans text-slate-800 relative overflow-hidden">
       
+      {/* 裝飾：背景呼吸光暈 */}
+      <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-emerald-200/20 rounded-full blur-[100px] animate-pulse-slow pointer-events-none"></div>
+
       {/* --- 標題區塊 --- */}
-      <header className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-5 pb-6 border-b border-slate-200/50">
+      <header className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-5 pb-6 border-b border-emerald-100 relative z-10">
         <div className="animate-fade-in-up">
-          <h1 className="text-4xl font-extrabold flex items-center tracking-tight">
-            <BookOpen className="mr-3 text-green-500 drop-shadow-sm" size={36} strokeWidth={2.5} /> 
-            {/* 修改處：名稱已更改 */}
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-green-600 to-teal-500">
+          <h1 className="text-4xl font-extrabold flex items-center tracking-tight text-slate-900 group cursor-default">
+            {/* Logo 使用 Webtoon 綠 */}
+            <BookOpen className="mr-3 text-[#00dc64] drop-shadow-sm group-hover:scale-110 transition-transform duration-300" size={38} strokeWidth={2.5} /> 
+            <span>
               漫畫補給站
             </span>
           </h1>
         </div>
 
-        {/* --- 搜尋列 --- */}
-        <div className="relative w-full md:w-80 group animate-fade-in-up delay-100">
-          <Search className="absolute left-4 top-3.5 text-gray-400 group-focus-within:text-green-500 transition-colors duration-300" size={20} />
+        {/* --- 搜尋列 (Webtoon 風格) --- */}
+        <div className="relative w-full md:w-96 group animate-fade-in-up delay-100">
+          <Search className="absolute left-5 top-3.5 text-slate-400 group-focus-within:text-[#00dc64] transition-colors duration-300" size={20} />
           <input
             type="text"
-            placeholder="搜尋作品..."
-            className="pl-12 pr-4 py-3 border-2 border-transparent rounded-full w-full bg-white/80 backdrop-blur-sm shadow-sm focus:outline-none focus:border-green-400 focus:ring-4 focus:ring-green-200/50 transition-all duration-300 text-sm font-bold placeholder-gray-400"
+            placeholder="搜尋漫畫名稱..."
+            className="pl-14 pr-6 py-3 border-2 border-slate-100 rounded-full w-full bg-white shadow-sm 
+                       focus:outline-none focus:border-[#00dc64] focus:ring-4 focus:ring-emerald-100 
+                       transition-all duration-300 text-sm font-bold placeholder-slate-400"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
       </header>
 
-      {/* --- 數據儀表板 --- */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10 animate-fade-in-up delay-200">
+      {/* --- 數據篩選按鈕 (Webtoon 風格) --- */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10 animate-fade-in-up delay-200">
         
         {/* 按鈕 1: 全部 */}
         <FilterCard 
@@ -124,101 +137,107 @@ const Dashboard = () => {
           onClick={() => setFilterType('all')}
           title="全部漫畫"
           count={stats.total}
-          icon={<LayoutGrid size={24} />}
-          theme="blue"
+          icon={<LayoutGrid size={22} />}
         />
 
-        {/* 按鈕 2: 免費完結 */}
+        {/* 按鈕 2: 免費連載 */}
+        <FilterCard 
+          active={filterType === 'free_ongoing'}
+          onClick={() => setFilterType('free_ongoing')}
+          title="免費連載"
+          count={stats.freeOngoing}
+          icon={<Zap size={22} />}
+        />
+
+        {/* 按鈕 3: 免費完結 */}
         <FilterCard 
           active={filterType === 'free_completed'}
           onClick={() => setFilterType('free_completed')}
           title="免費完結"
           count={stats.freeCompleted}
-          icon={<Gift size={24} />}
-          theme="green"
+          icon={<Trophy size={22} />} 
         />
 
-        {/* 按鈕 3: 付費/追漫券 */}
+        {/* 按鈕 4: 付費/追漫券 */}
         <FilterCard 
           active={filterType === 'paid'}
           onClick={() => setFilterType('paid')}
           title="需追漫券"
           count={stats.paid}
-          icon={<Lock size={24} />}
-          theme="purple"
+          icon={<Lock size={22} />}
         />
       </div>
 
       {/* --- 列表區塊 --- */}
       {currentItems.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-32 bg-white/60 backdrop-blur-md rounded-[2rem] border-2 border-dashed border-gray-300 animate-fade-in-up delay-300">
-          <div className="bg-white p-5 rounded-full mb-4 shadow-md animate-bounce-slow">
-            <Sparkles size={40} className="text-gray-300" />
+        <div className="flex flex-col items-center justify-center py-32 bg-white rounded-[2rem] border border-slate-100 shadow-sm animate-fade-in-up delay-300">
+          <div className="bg-emerald-50 p-6 rounded-full mb-4 shadow-inner animate-bounce-slow">
+            <Sparkles size={40} className="text-emerald-400" />
           </div>
-          <p className="text-gray-500 font-bold text-lg">沒有找到符合條件的漫畫</p>
-          <button onClick={() => {setSearchTerm(''); setFilterType('all');}} className="mt-5 px-6 py-2 bg-green-50 text-green-600 font-bold rounded-full hover:bg-green-100 transition-colors shadow-sm">
+          <p className="text-slate-500 font-bold text-lg">沒有找到符合條件的漫畫</p>
+          <button onClick={() => {setSearchTerm(''); setFilterType('all');}} className="mt-5 px-8 py-2.5 bg-[#00dc64] text-white font-bold rounded-full hover:bg-[#00c85a] hover:shadow-lg transition-all active:scale-95">
             清除所有篩選
           </button>
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-x-5 gap-y-8 animate-fade-in-up delay-300">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-x-5 gap-y-10 animate-fade-in-up delay-300">
             {currentItems.map((comic, index) => {
               const status = getComicStatus(comic);
               return (
                 <div 
                   key={comic.id} 
                   onClick={() => navigate(`/comic/${comic.id}`)}
-                  className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:shadow-green-100/50 hover:-translate-y-2 transition-all duration-500 ease-out cursor-pointer group border border-gray-100/50 relative z-0 hover:z-10"
+                  className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-[0_10px_40px_-10px_rgba(0,220,100,0.3)] 
+                             hover:-translate-y-2 hover:ring-2 hover:ring-[#00dc64]
+                             transition-all duration-300 ease-out cursor-pointer group border border-slate-100 relative"
                 >
                   {/* 圖片區域 */}
-                  <div className="h-32 overflow-hidden relative bg-gray-200">
+                  <div className="h-40 overflow-hidden relative bg-slate-100">
                     <img
                       src={getImg(comic.picture)}
                       alt={comic.title}
-                      className="w-full h-full object-cover object-left group-hover:scale-110 transition-transform duration-700 ease-in-out"
+                      className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500 ease-out"
                       loading="lazy"
                     />
                     
                     {/* 狀態標籤 */}
                     {status === 'paid' && (
-                      <div className="absolute top-2 left-2 bg-purple-600/90 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-sm flex items-center">
-                        <Lock size={10} className="mr-1"/> 追漫券
+                      <div className="absolute top-2 left-2 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-lg shadow-md flex items-center">
+                        <Lock size={10} className="mr-1 text-purple-400"/> 追漫券
                       </div>
                     )}
                     {status === 'free_completed' && (
-                      <div className="absolute top-2 left-2 bg-green-500/90 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-sm flex items-center">
-                        <CheckCircle size={10} className="mr-1"/> 免費完結
+                      <div className="absolute top-2 left-2 bg-[#00dc64] text-white text-[10px] font-bold px-2.5 py-1 rounded-lg shadow-md flex items-center">
+                        <CheckCircle size={10} className="mr-1"/> 完結
                       </div>
                     )}
                     {status === 'free_ongoing' && (
-                      <div className="absolute top-2 left-2 bg-orange-500/90 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-lg shadow-sm flex items-center">
-                        <Zap size={10} className="mr-1"/> 連載
+                      <div className="absolute top-2 left-2 bg-orange-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg shadow-md flex items-center">
+                        <Hourglass size={10} className="mr-1"/> 連載
                       </div>
                     )}
                     
                     {/* 類型標籤 */}
-                    <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md text-white text-[10px] px-2 py-0.5 rounded-full">
+                    <div className="absolute bottom-2 right-2 bg-white/90 backdrop-blur text-slate-800 text-[10px] font-extrabold px-2 py-0.5 rounded-md shadow-sm border border-white/50">
                       {comic.genre}
                     </div>
                   </div>
 
                   {/* 文字區域 */}
                   <div className="p-4">
-                    <h3 className="font-bold text-gray-900 truncate text-sm mb-1 group-hover:text-green-600 transition-colors duration-300" title={comic.title}>
+                    <h3 className="font-extrabold text-slate-800 truncate text-sm mb-1 group-hover:text-[#00dc64] transition-colors duration-300" title={comic.title}>
                       {comic.title}
                     </h3>
-                    <p className="text-xs text-gray-400 truncate mb-3">{comic.author}</p>
+                    <p className="text-xs text-slate-400 truncate mb-3">{comic.author}</p>
                     
-                    <div className="flex justify-between items-center text-[10px] font-medium">
-                      <span className={
-                        status === 'paid' ? "text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full" :
-                        status === 'free_completed' ? "text-green-700 bg-green-50 px-2 py-0.5 rounded-full" :
-                        "text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full"
-                      }>
+                    <div className="flex justify-between items-center text-[10px] font-bold">
+                      <span className="text-slate-400 bg-slate-50 px-2 py-1 rounded-md">
                         {comic.episodes}
                       </span>
-                      <span className="text-gray-400">{comic.crawl_date?.split(' ')[0]}</span>
+                      <span className="text-[#00dc64] flex items-center">
+                        {comic.crawl_date?.split(' ')[0]}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -226,27 +245,27 @@ const Dashboard = () => {
             })}
           </div>
 
-          {/* --- 分頁按鈕區 --- */}
+          {/* --- 分頁按鈕區 (Webtoon 風格) --- */}
           {totalPages > 1 && (
-            <div className="flex justify-center items-center mt-16 gap-4 pb-12 animate-fade-in-up delay-500">
+            <div className="flex justify-center items-center mt-16 gap-3 pb-12 animate-fade-in-up delay-500">
               <button 
                 onClick={() => paginate(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="px-6 py-3 bg-white border-2 border-gray-100 rounded-full hover:border-green-400 hover:text-green-600 hover:shadow-lg disabled:opacity-40 disabled:hover:border-gray-100 disabled:hover:text-gray-400 disabled:hover:shadow-none text-sm font-bold text-gray-600 transition-all duration-300 active:scale-95"
+                className="px-5 py-2.5 bg-white border border-slate-200 rounded-full hover:border-[#00dc64] hover:text-[#00dc64] disabled:opacity-30 disabled:hover:border-slate-200 disabled:hover:text-slate-400 text-sm font-bold text-slate-600 transition-all active:scale-95"
               >
-                上一頁
+                Prev
               </button>
               
-              <span className="bg-white px-6 py-3 rounded-full shadow-sm border border-gray-100 text-gray-500 text-sm font-medium">
-                <span className="text-green-500 font-extrabold text-lg mx-1">{currentPage}</span> / {totalPages}
+              <span className="bg-white px-6 py-2.5 rounded-full shadow-sm border border-slate-100 text-slate-400 text-sm font-bold">
+                <span className="text-[#00dc64] text-lg mx-1">{currentPage}</span> / {totalPages}
               </span>
               
               <button 
                 onClick={() => paginate(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="px-6 py-3 bg-white border-2 border-gray-100 rounded-full hover:border-green-400 hover:text-green-600 hover:shadow-lg disabled:opacity-40 disabled:hover:border-gray-100 disabled:hover:text-gray-400 disabled:hover:shadow-none text-sm font-bold text-gray-600 transition-all duration-300 active:scale-95"
+                className="px-5 py-2.5 bg-white border border-slate-200 rounded-full hover:border-[#00dc64] hover:text-[#00dc64] disabled:opacity-30 disabled:hover:border-slate-200 disabled:hover:text-slate-400 text-sm font-bold text-slate-600 transition-all active:scale-95"
               >
-                下一頁
+                Next
               </button>
             </div>
           )}
@@ -256,56 +275,39 @@ const Dashboard = () => {
   );
 };
 
-// --- 修改後的篩選卡片元件 ---
-const FilterCard = ({ active, onClick, title, count, icon, theme }) => {
-    const themes = {
-      blue: {
-        bg: 'bg-gradient-to-br from-blue-50 to-cyan-50',
-        border: 'border-blue-200',
-        iconBg: 'bg-blue-100 text-blue-600',
-        text: 'text-blue-800',
-        shadow: 'hover:shadow-blue-100'
-      },
-      green: {
-        bg: 'bg-gradient-to-br from-green-50 to-emerald-50',
-        border: 'border-green-200',
-        iconBg: 'bg-green-100 text-green-600',
-        text: 'text-green-800',
-        shadow: 'hover:shadow-green-100'
-      },
-      purple: {
-        bg: 'bg-gradient-to-br from-purple-50 to-fuchsia-50',
-        border: 'border-purple-200',
-        iconBg: 'bg-purple-100 text-purple-600',
-        text: 'text-purple-800',
-        shadow: 'hover:shadow-purple-100'
-      }
-    };
-    const t = themes[theme];
-  
+// --- Webtoon 風格篩選卡片 ---
+const FilterCard = ({ active, onClick, title, count, icon }) => {
     return (
       <div 
         onClick={onClick}
-        className={`p-5 rounded-[2rem] border-2 cursor-pointer transition-all duration-300 group relative overflow-hidden active:scale-95 hover:-translate-y-1
+        className={`p-5 rounded-2xl border cursor-pointer transition-all duration-300 group relative overflow-hidden active:scale-95 hover:-translate-y-1
           ${active 
-            ? `${t.bg} ${t.border} shadow-md scale-[1.02]` 
-            : `bg-white border-transparent hover:border-gray-100 hover:shadow-xl ${t.shadow}`}`}
+            ? 'bg-[#00dc64] border-[#00dc64] shadow-lg shadow-emerald-200' 
+            : 'bg-white border-slate-100 hover:border-[#00dc64] hover:shadow-md'
+          }`}
       >
-        <div className="flex justify-between items-center mb-3 relative z-10">
-          <span className={`text-sm font-bold flex items-center px-3 py-1.5 rounded-full transition-colors duration-300 ${active ? t.iconBg : 'bg-gray-100 text-gray-500 group-hover:bg-white/80'}`}>
-            <span className="mr-2">{icon}</span> {title}
+        <div className="flex justify-between items-center mb-2 relative z-10">
+          <span className={`text-sm font-bold flex items-center transition-colors duration-300 
+            ${active ? 'text-white' : 'text-slate-500 group-hover:text-[#00dc64]'}`}>
+            <span className={`mr-2 p-1.5 rounded-lg ${active ? 'bg-white/20' : 'bg-slate-100 group-hover:bg-emerald-50'}`}>
+              {icon}
+            </span> 
+            {title}
           </span>
         </div>
-        <h2 className={`text-4xl font-extrabold relative z-10 transition-colors duration-300 ${active ? t.text : 'text-gray-800 group-hover:text-black'}`}>
+        
+        <h2 className={`text-3xl font-black relative z-10 transition-colors duration-300 
+          ${active ? 'text-white' : 'text-slate-800'}`}>
           {count}
         </h2>
         
-        {/* --- 裝飾背景圖標 (bottom-8 right-8) --- */}
-        <div className={`absolute bottom-8 right-8 opacity-20 transform rotate-12 scale-[2] pointer-events-none transition-all duration-500 ease-in-out group-hover:scale-[2.2] group-hover:opacity-30 group-hover:-rotate-12 ${t.text}`}>
+        {/* --- 裝飾背景圖標 --- */}
+        <div className={`absolute bottom-[-10px] right-[-10px] opacity-10 transform rotate-12 scale-[2.5] pointer-events-none transition-all duration-500 
+          ${active ? 'text-white' : 'text-[#00dc64] group-hover:scale-[3] group-hover:rotate-0'}`}>
           {icon}
         </div>
       </div>
     );
   };
 
-export default Dashboard;
+export default Dashboard;ㄒ

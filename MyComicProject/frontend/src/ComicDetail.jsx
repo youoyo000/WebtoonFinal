@@ -9,10 +9,16 @@ const ComicDetail = () => {
   const [comic, setComic] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // ---------------------------------------------------------
+  // 🔴 請將下方的網址改成您 Render 後端的實際網址 (不要有最後的斜線)
+  // ---------------------------------------------------------
+  const BACKEND_URL = "https://你的後端網址.onrender.com"; 
+
   useEffect(() => {
     const fetchComic = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/comics');
+        // ✅ 已修改：使用雲端網址
+        const res = await axios.get(`${BACKEND_URL}/api/comics`);
         const foundComic = res.data.find(c => String(c.id) === String(id));
         setTimeout(() => {
           setComic(foundComic);
@@ -24,9 +30,10 @@ const ComicDetail = () => {
       }
     };
     fetchComic();
-  }, [id]);
+  }, [id, BACKEND_URL]);
 
-  const getImg = (url) => `http://localhost:5000/api/proxy-image?url=${encodeURIComponent(url)}`;
+  // ✅ 已修改：使用雲端網址
+  const getImg = (url) => `${BACKEND_URL}/api/proxy-image?url=${encodeURIComponent(url)}`;
 
   if (loading) {
     return (
